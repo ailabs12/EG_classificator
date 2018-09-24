@@ -75,7 +75,7 @@ def classify_gender():
 
     start_time = datetime.now()
 
-    prediction_result = eg_processor.gender_classificator(img_body)
+    prediction_result = eg_processor.gender_classificator(img_body, min_accuracy)
 
     delta = datetime.now() - start_time
 
@@ -95,7 +95,7 @@ def is_valid_request(request):
 def get_request_data(request):
     r = request.json
     image = r["image"] if "image" in r else ""
-    min_accuracy = r["minAccuracy"] if "minAccuracy" in r else 30
+    min_accuracy = r["minAccuracy"] if "minAccuracy" in r else 60
     return image, min_accuracy
 
 
