@@ -20,9 +20,13 @@ def classify_emotion():
         img.save(img_byte_arr, format="PNG")
         img_byte_arr = img_byte_arr.getvalue()
 
+        image, min_accuracy = get_request_data(request)
+
+        print(min_accuracy)
+
         start_time = datetime.now()
 
-        prediction_result = eg_processor.emotion_classificator(img_byte_arr)
+        prediction_result = eg_processor.emotion_classificator(img_byte_arr, min_accuracy)
 
         end_time = datetime.now()
         delta1 = end_time - start_time
@@ -132,7 +136,10 @@ def get_json_response(result=None, msg=None):
                 "confident": item["emotion"].split(":")[1]
             }
         if "gender" in item:
-            d["gender"] = item["gender"]
+            d["genderInfo"] = {
+                "gender": item["gender"].split(":")[0],
+                "confident": item["gender"].split(":")[1]
+            }
         json["data"].append(deepcopy(d))
 
     json["success"] = True

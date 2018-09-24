@@ -51,7 +51,8 @@ def emotion_classificator(image, min_accuracy=60):
         faces = detect_faces(_FACE_DETECTION, gray_image)
 
         delta_preprocess = datetime.now() - start_time_preprocess
-        print("delta for preprocess {0}".format(delta_preprocess.total_seconds() * 1000.0))
+        print("delta for preprocess {0}"
+              .format(delta_preprocess.total_seconds() * 1000.0))
         for face_coordinates in faces:
             x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
             gray_face = gray_image[y1:y2, x1:x2]
@@ -70,17 +71,17 @@ def emotion_classificator(image, min_accuracy=60):
                 emotion_prediction = _EMOTION_CLASSIFIER.predict(gray_face)
                 emotion_label_arg = np.argmax(emotion_prediction)
                 emotion_text = emotion_labels[emotion_label_arg]
-                emotion_confident_prediction = emotion_prediction.astype(float).flat[emotion_label_arg]
+                confident_prediction = (emotion_prediction
+                                        .astype(float)
+                                        .flat[emotion_label_arg])
 
             delta = datetime.now() - start_time
             print("Delta for emotion classificator {0}"
                   .format(delta.total_seconds() * 1000.0))
 
             json_info['emotion'] = "{0}:{1}".format(
-                emotion_text,
-                emotion_prediction
-                .astype(float)
-                .flat[emotion_label_arg])
+                emotion_text if (confident_prediction * 100.0) > min_accuracy else "NaN",
+                confident_prediction if (confident_prediction * 100.0) > min_accuracy else "NaN")
 
             json_info['face_bound'] = list(map(lambda it: str(it),
                                                list(face_coordinates
@@ -128,14 +129,17 @@ def gender_classificator(image, min_accuracy=60):
                 gender_prediction = _GENDER_CLASSIFIER.predict(rgb_face)
                 gender_label_arg = np.argmax(gender_prediction)
                 gender_text = gender_labels[gender_label_arg]
+                confident_prediction = (gender_prediction
+                                        .astype(float)
+                                        .flat[gender_label_arg])
 
             delta = datetime.now() - start_time
             print("Delta for gender classificator {0}"
                   .format(delta.total_seconds() * 1000.0))
 
             json_info['gender'] = "{0}:{1}".format(
-                gender_text,
-                gender_prediction.flat[gender_label_arg])
+                gender_text if (confident_prediction * 100.0) > min_accuracy else "NaN",
+                confident_prediction if (confident_prediction * 100.0) > min_accuracy else "NaN")
 
             json_info['face_bound'] = list(map(lambda it: str(it),
                                                list(face_coordinates
@@ -226,8 +230,8 @@ def process_image(image):
 
             json_info['face_bound'] = list(map(lambda it: (str(it),
                                                            list(face_coordinates
-                                                                .astype(np.int)
-                                                                .flat))))
+                                                           .astype(np.int)
+                                                           .flat))))
 
             detected_peoples.append(json_info.copy())
 
