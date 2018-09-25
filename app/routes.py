@@ -9,7 +9,7 @@ from flask import Flask, make_response, request, json
 from app import app
 import app.emotion_gender_processor as eg_processor
 
-_DEBUG = True
+_DEBUG = False
 
 
 @app.route("/emotion_classificator/1.0", methods=["POST"])

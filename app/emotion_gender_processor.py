@@ -54,6 +54,7 @@ def emotion_classificator(image, min_accuracy=60):
         print("delta for preprocess {0}"
               .format(delta_preprocess.total_seconds() * 1000.0))
         for face_coordinates in faces:
+            print("Apply offsets...")
             x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
             gray_face = gray_image[y1:y2, x1:x2]
 
@@ -61,7 +62,7 @@ def emotion_classificator(image, min_accuracy=60):
                 gray_face = cv2.resize(gray_face, (emotion_target_size))
             except:
                 continue
-
+            print("Done.")
             start_time = datetime.now()
 
             with _GRAPH.as_default():
