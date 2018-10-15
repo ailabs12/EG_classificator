@@ -25,9 +25,11 @@ _SAVE_DIR = 'static/result'
 _DETECTION_MODEL_PATH = './app/trained_models/detection_models/haarcascade_frontalface_default.xml'
 _GENDER_MODEL_PATH = './app/trained_models/gender_models/simple_CNN.81-0.96.hdf5'
 _EMOTION_MODEL_PATH = './app/trained_models/emotion_models/fer2013_mini_XCEPTION.102-0.66.hdf5'
+_AGE_MODEL_PATH = './app/trained_models/age_models/xNet_2.h5'
 _FACE_DETECTION = load_detection_model(_DETECTION_MODEL_PATH)
 _GENDER_CLASSIFIER = load_model(_GENDER_MODEL_PATH, compile=False)
 _EMOTION_CLASSIFIER = load_model(_EMOTION_MODEL_PATH, compile=False)
+_AGE_CLASSIFIER = load_model(_AGE_MODEL_PATH, compile=False)
 _GRAPH = tf.get_default_graph()
 
 
@@ -64,18 +66,23 @@ def emotion_classificator(image, min_accuracy=60):
                 continue
             print("Done.")
             start_time = datetime.now()
-
+            print("Start prediction...")
             with _GRAPH.as_default():
+                print("   #Preprocess input...")
                 gray_face = preprocess_input(gray_face, True)
+                print("   #Expand dims...")
                 gray_face = np.expand_dims(gray_face, 0)
                 gray_face = np.expand_dims(gray_face, -1)
+                print("   #Prediction...")
                 emotion_prediction = _EMOTION_CLASSIFIER.predict(gray_face)
+                print("   #Argmax label emotion...")
                 emotion_label_arg = np.argmax(emotion_prediction)
                 emotion_text = emotion_labels[emotion_label_arg]
                 confident_prediction = (emotion_prediction
                                         .astype(float)
                                         .flat[emotion_label_arg])
 
+            print("Done.")
             delta = datetime.now() - start_time
             print("Delta for emotion classificator {0}"
                   .format(delta.total_seconds() * 1000.0))
@@ -153,115 +160,144 @@ def gender_classificator(image, min_accuracy=60):
     return detected_peoples
 
 
-def process_image(image):
+def process_image():
     detected_peoples = []
     json_info = {}
-    try:
-        # parameters for loading data and images
-        emotion_labels = get_labels('fer2013')
-        gender_labels = get_labels('imdb')
-        # font = cv2.FONT_HERSHEY_SIMPLEX
+    cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        try:
+            # parameters for loading data and images
+            emotion_labels = get_labels('fer2013')
+            gender_labels = get_labels('imdb')
+            age_labels = ['0-12', '13-30', '31-50', '51-70']
+            # font = cv2.FONT_HERSHEY_SIMPLEX
 
-        # gender_keys = list(gender_labels.values())
-        # emotion_keys = list(emotion_labels.values())
+            # gender_keys = list(gender_labels.values())
+            # emotion_keys = list(emotion_labels.values())
 
-        # hyper-parameters for bounding boxes shape
-        gender_offsets = (30, 60)
-        gender_offsets = (10, 10)
-        emotion_offsets = (20, 40)
-        emotion_offsets = (0, 0)
+            # hyper-parameters for bounding boxes shape
+            gender_offsets = (30, 60)
+            gender_offsets = (10, 10)
+            emotion_offsets = (20, 40)
+            emotion_offsets = (0, 0)
+            age_offsets = (10, 10)
 
-        # getting input model shapes for inference
-        gender_target_size = _GENDER_CLASSIFIER.input_shape[1:3]
-        emotion_target_size = _EMOTION_CLASSIFIER.input_shape[1:3]
+            # getting input model shapes for inference
+            gender_target_size = _GENDER_CLASSIFIER.input_shape[1:3]
+            emotion_target_size = _EMOTION_CLASSIFIER.input_shape[1:3]
+            age_target_size = _AGE_CLASSIFIER.input_shape[1:3]
 
-        # loading images
-        image_array = np.fromstring(image, np.uint8)
-        unchanged_image = cv2.imdecode(image_array, cv2.IMREAD_UNCHANGED)
+            # loading images
+            # image_array = np.fromstring(frame, np.uint8)
+            unchanged_image = frame
+            # unchanged_image = cv2.imdecode(image_array, cv2.IMREAD_UNCHANGED)
 
-        rgb_image = cv2.cvtColor(unchanged_image, cv2.COLOR_BGR2RGB)
-        gray_image = cv2.cvtColor(unchanged_image, cv2.COLOR_BGR2GRAY)
+            rgb_image = cv2.cvtColor(unchanged_image, cv2.COLOR_BGR2RGB)
+            gray_image = cv2.cvtColor(unchanged_image, cv2.COLOR_BGR2GRAY)
 
-        faces = detect_faces(_FACE_DETECTION, gray_image)
-        for face_coordinates in faces:
-            x1, x2, y1, y2 = apply_offsets(face_coordinates, gender_offsets)
-            rgb_face = rgb_image[y1:y2, x1:x2]
+            faces = detect_faces(_FACE_DETECTION, gray_image)
+            for face_coordinates in faces:
+                x1, x2, y1, y2 = apply_offsets(face_coordinates, gender_offsets)
+                rgb_face = rgb_image[y1:y2, x1:x2]
 
-            x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
-            gray_face = gray_image[y1:y2, x1:x2]
+                x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
+                gray_face = gray_image[y1:y2, x1:x2]
 
-            try:
-                rgb_face = cv2.resize(rgb_face, (gender_target_size))
-                gray_face = cv2.resize(gray_face, (emotion_target_size))
-            except:
-                continue
+                x1, x2, y1, y2 = apply_offsets(face_coordinates, age_offsets)
+                gray_face2 = gray_image[y1:y2, x1:x2]
 
-            start_time = datetime.now()
+                try:
+                    rgb_face = cv2.resize(rgb_face, (gender_target_size))
+                    gray_face = cv2.resize(gray_face, (emotion_target_size))
+                    gray_face2 = cv2.resize(gray_face2, (age_target_size))
+                except:
+                    continue
 
-            with _GRAPH.as_default():
-                rgb_face = preprocess_input(rgb_face, False)
-                rgb_face = np.expand_dims(rgb_face, 0)
-                gender_prediction = _GENDER_CLASSIFIER.predict(rgb_face)
-                gender_label_arg = np.argmax(gender_prediction)
-                gender_text = gender_labels[gender_label_arg]
+                # start_time = datetime.now()
 
-                end_time = datetime.now()
-                delta1 = end_time - start_time
+                with _GRAPH.as_default():
+                    rgb_face = preprocess_input(rgb_face, False)
+                    rgb_face = np.expand_dims(rgb_face, 0)
+                    gender_prediction = _GENDER_CLASSIFIER.predict(rgb_face)
+                    gender_label_arg = np.argmax(gender_prediction)
+                    gender_text = gender_labels[gender_label_arg]
 
-                gray_face = preprocess_input(gray_face, True)
-                gray_face = np.expand_dims(gray_face, 0)
-                gray_face = np.expand_dims(gray_face, -1)
-                emotion_prediction = _EMOTION_CLASSIFIER.predict(gray_face)
-                emotion_label_arg = np.argmax(emotion_prediction)
-                emotion_text = emotion_labels[emotion_label_arg]
+                    # end_time = datetime.now()
+                    # delta1 = end_time - start_time
 
-            delta2 = datetime.now() - end_time
-            print("Delta for gender classificator {0}"
-                  .format(delta1.total_seconds() * 1000.0))
-            print("Delta for emotion classificator {0}"
-                  .format(delta2.total_seconds() * 1000.0))
+                    gray_face = preprocess_input(gray_face, True)
+                    gray_face = np.expand_dims(gray_face, 0)
+                    gray_face = np.expand_dims(gray_face, -1)
+                    emotion_prediction = _EMOTION_CLASSIFIER.predict(gray_face)
+                    emotion_label_arg = np.argmax(emotion_prediction)
+                    emotion_text = emotion_labels[emotion_label_arg]
 
-            json_info['gender'] = "{0}:{1}".format(
-                gender_text,
-                gender_prediction.flat[gender_label_arg])
+                    gray_face2 = preprocess_input(gray_face2, True)
+                    gray_face2 = np.expand_dims(gray_face2, 0)
+                    gray_face2 = np.expand_dims(gray_face2, -1)
+                    age_prediction = _AGE_CLASSIFIER.predict(gray_face2)
+                    age_label_arg = np.argmax(age_prediction)
+                    age_text = age_labels[age_label_arg]
 
-            json_info['emotion'] = "{0}:{1}".format(
-                emotion_text,
-                emotion_prediction.flat[emotion_label_arg])
+                # delta2 = datetime.now() - end_time
+                # print("Delta for gender classificator {0}"
+                #     .format(delta1.total_seconds() * 1000.0))
+                # print("Delta for emotion classificator {0}"
+                #     .format(delta2.total_seconds() * 1000.0))
 
-            json_info['face_bound'] = list(map(lambda it: (str(it),
-                                                           list(face_coordinates
-                                                           .astype(np.int)
-                                                           .flat))))
+                # json_info['gender'] = "{0}:{1}".format(
+                #     gender_text,
+                #     gender_prediction.flat[gender_label_arg])
 
-            detected_peoples.append(json_info.copy())
+                # json_info['emotion'] = "{0}:{1}".format(
+                #     emotion_text,
+                #     emotion_prediction.flat[emotion_label_arg])
 
-            print(detected_peoples)
+                # json_info['face_bound'] = list(map(lambda it: (str(it),
+                #                                             list(face_coordinates
+                #                                             .astype(np.int)
+                #                                             .flat))))
 
-            if gender_text == gender_labels[0]:
-                color = (0, 0, 255)
-            else:
-                color = (255, 0, 0)
+                # detected_peoples.append(json_info.copy())
 
-            draw_bounding_box(face_coordinates, rgb_image, color)
-            draw_text(face_coordinates, rgb_image,
-                      gender_text, color, 0, -20, 1, 2)
-            draw_text(face_coordinates, rgb_image,
-                      emotion_text, color, 0, -10, 1, 2)
-    except Exception as err:
-        logging.error('Error in emotion gender processor: "{0}"'.format(err))
+                # print(detected_peoples)
 
-    start_time = datetime.now()
-    bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
+                if gender_text == gender_labels[0]:
+                    color = (0, 0, 255)
+                else:
+                    color = (255, 0, 0)
 
-    if not os.path.exists(_SAVE_DIR):
-        os.mkdir(_SAVE_DIR)
+                draw_bounding_box(face_coordinates, rgb_image, color)
+                draw_text(face_coordinates, rgb_image,
+                        gender_text, color, 0, -40, 1, 1)
+                draw_text(face_coordinates, rgb_image,
+                        emotion_text, color, 0, -60, 1, 1)
+                draw_text(face_coordinates, rgb_image,
+                        age_text, color, 0, -10, 1, 1)
+        except Exception as err:
+            logging.error('Error in emotion gender processor: "{0}"'.format(err))
 
-    recognition_datetime = str(datetime.now()).replace(' ', '_')
-    filepath = os.path.join(_SAVE_DIR, 'predicted_image_{0}.png'
-                                       .format(recognition_datetime))
-    cv2.imwrite(filepath, bgr_image)
-    delta = datetime.now() - start_time
-    print("delta for saving image", delta.total_seconds() * 1000.0)
+        # start_time = datetime.now()
+        bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
 
-    return detected_peoples
+        # if not os.path.exists(_SAVE_DIR):
+        #     os.mkdir(_SAVE_DIR)
+
+        # recognition_datetime = str(datetime.now()).replace(' ', '_')
+        # filepath = os.path.join(_SAVE_DIR, 'predicted_image_{0}.png'
+        #                                 .format(recognition_datetime))
+        # cv2.imwrite(filepath, bgr_image)
+        # delta = datetime.now() - start_time
+        # print("delta for saving image", delta.total_seconds() * 1000.0)
+
+        cv2.imshow("Demo", bgr_image)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break 
+    
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    process_image()
