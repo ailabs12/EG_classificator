@@ -9,7 +9,7 @@ from flask import Flask, make_response, request, json
 from app import app
 import app.emotion_gender_processor as eg_processor
 
-_DEBUG = True
+_DEBUG = False
 
 
 @app.route("/emotion_classificator/1.0", methods=["POST"])
@@ -20,9 +20,13 @@ def classify_emotion():
         img.save(img_byte_arr, format="PNG")
         img_byte_arr = img_byte_arr.getvalue()
 
+        image, min_accuracy = get_request_data(request)
+
+        print(min_accuracy)
+
         start_time = datetime.now()
 
-        prediction_result = eg_processor.emotion_classificator(img_byte_arr)
+        prediction_result = eg_processor.emotion_classificator(img_byte_arr, min_accuracy)
 
         end_time = datetime.now()
         delta1 = end_time - start_time
@@ -71,7 +75,7 @@ def classify_gender():
 
     start_time = datetime.now()
 
-    prediction_result = eg_processor.gender_classificator(img_body)
+    prediction_result = eg_processor.gender_classificator(img_body, min_accuracy)
 
     delta = datetime.now() - start_time
 
@@ -91,7 +95,7 @@ def is_valid_request(request):
 def get_request_data(request):
     r = request.json
     image = r["image"] if "image" in r else ""
-    min_accuracy = r["minAccuracy"] if "minAccuracy" in r else 30
+    min_accuracy = r["minAccuracy"] if "minAccuracy" in r else 60
     return image, min_accuracy
 
 
@@ -132,7 +136,10 @@ def get_json_response(result=None, msg=None):
                 "confident": item["emotion"].split(":")[1]
             }
         if "gender" in item:
-            d["gender"] = item["gender"]
+            d["genderInfo"] = {
+                "gender": item["gender"].split(":")[0],
+                "confident": item["gender"].split(":")[1]
+            }
         json["data"].append(deepcopy(d))
 
     json["success"] = True
