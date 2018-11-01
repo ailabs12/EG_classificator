@@ -2,7 +2,11 @@
 REST-like API service for emotion and gender classification
 
 # Run server
+<<<<<<< HEAD
 Чтобы запустить сервер на Flask локально, нужно прописать в консоли следующую вещь 
+=======
+для того, чтобы запустить сервер на Flask локально, нужно прописать в консоли следующую вещь 
+>>>>>>> 552140b3668cdaec801e5ec9cc2e6a948daa96a6
 
 export FLASK_APP=eg_classificator.py
 
