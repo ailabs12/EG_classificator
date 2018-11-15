@@ -27,5 +27,17 @@ docker run --name eg_classificator -d -p 8000:5000 --rm eg_calssificator:1.0
 ```
 После запуска сервис будет доступен по адресу 0.0.0.0:8000
 
+# Run server with Docker
+Для того, чтобы запустить сервис с помощью Docker нужно сначала собрать Docker image:
+
+cd eg_classificator
+docker build -t eg_classificator:1.0 .
+
+Затем чтобы запустить образ, нужно применить следующую команду:
+
+docker run --name eg_classificator -d -p 8000:5000 --rm eg_calssificator:1.0
+
+После запуска сервис будет доступен по адресу 0.0.0.0:8000
+
 # Usage
 https://emotionclassificatorapi10.docs.apiary.io
