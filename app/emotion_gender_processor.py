@@ -1,3 +1,4 @@
+#!/usr/bin/python3.5
 import os
 import sys
 import logging
@@ -22,10 +23,11 @@ from app.utils.preprocessor import preprocess_input
 
 backend.clear_session()
 _SAVE_DIR = 'static/result'
-_DETECTION_MODEL_PATH = './app/trained_models/detection_models/haarcascade_frontalface_default.xml'
-_GENDER_MODEL_PATH = './app/trained_models/gender_models/simple_CNN.81-0.96.hdf5'
-_EMOTION_MODEL_PATH = './app/trained_models/emotion_models/fer2013_mini_XCEPTION.102-0.66.hdf5'
-_AGE_MODEL_PATH = './app/trained_models/age_models/xNet_2.h5'
+_MODELS_PATH = './app/trained_models'
+_DETECTION_MODEL_PATH = _MODELS_PATH + '/detection_models/haarcascade_frontalface_default.xml'
+_GENDER_MODEL_PATH = _MODELS_PATH + '/gender_models/simple_CNN.81-0.96.hdf5'
+_EMOTION_MODEL_PATH = _MODELS_PATH + '/emotion_models/fer2013_mini_XCEPTION.102-0.66.hdf5'
+_AGE_MODEL_PATH = _MODELS_PATH + '/age_models/weights-improvement-05-7.8108.hdf5'
 _FACE_DETECTION = load_detection_model(_DETECTION_MODEL_PATH)
 _GENDER_CLASSIFIER = load_model(_GENDER_MODEL_PATH, compile=False)
 _EMOTION_CLASSIFIER = load_model(_EMOTION_MODEL_PATH, compile=False)
@@ -64,32 +66,26 @@ def emotion_classificator(image, min_accuracy=60):
                 gray_face = cv2.resize(gray_face, (emotion_target_size))
             except:
                 continue
-            print("Done.")
             start_time = datetime.now()
-            print("Start prediction...")
             with _GRAPH.as_default():
-                print("   #Preprocess input...")
                 gray_face = preprocess_input(gray_face, True)
-                print("   #Expand dims...")
                 gray_face = np.expand_dims(gray_face, 0)
                 gray_face = np.expand_dims(gray_face, -1)
-                print("   #Prediction...")
                 emotion_prediction = _EMOTION_CLASSIFIER.predict(gray_face)
-                print("   #Argmax label emotion...")
                 emotion_label_arg = np.argmax(emotion_prediction)
                 emotion_text = emotion_labels[emotion_label_arg]
                 confident_prediction = (emotion_prediction
                                         .astype(float)
                                         .flat[emotion_label_arg])
 
-            print("Done.")
             delta = datetime.now() - start_time
             print("Delta for emotion classificator {0}"
                   .format(delta.total_seconds() * 1000.0))
 
+            is_greater_min_acc = (confident_prediction * 100.0) > min_accuracy
             json_info['emotion'] = "{0}:{1}".format(
-                emotion_text if (confident_prediction * 100.0) > min_accuracy else "NaN",
-                confident_prediction if (confident_prediction * 100.0) > min_accuracy else "NaN")
+                emotion_text if is_greater_min_acc else "NaN",
+                confident_prediction if is_greater_min_acc else "NaN")
 
             json_info['face_bound'] = list(map(lambda it: str(it),
                                                list(face_coordinates
@@ -145,9 +141,10 @@ def gender_classificator(image, min_accuracy=60):
             print("Delta for gender classificator {0}"
                   .format(delta.total_seconds() * 1000.0))
 
+            is_greater_min_acc = (confident_prediction * 100.0) > min_accuracy
             json_info['gender'] = "{0}:{1}".format(
-                gender_text if (confident_prediction * 100.0) > min_accuracy else "NaN",
-                confident_prediction if (confident_prediction * 100.0) > min_accuracy else "NaN")
+                gender_text if is_greater_min_acc else "NaN",
+                confident_prediction if is_greater_min_acc else "NaN")
 
             json_info['face_bound'] = list(map(lambda it: str(it),
                                                list(face_coordinates
@@ -160,12 +157,33 @@ def gender_classificator(image, min_accuracy=60):
     return detected_peoples
 
 
+def age_classificator(image):
+    """
+    Predicts age for single people on the image
+
+    Params:
+        image (base64) - input image
+    Returns:
+        prediction (list) - list of age prediction available by key 'age'
+    """
+    age_target_size = _AGE_CLASSIFIER.input_shape[1:3]
+    rgb_image = preprocess_image(image)
+    rgb_image = cv2.resize(rgb_image, age_target_size)
+    rgb_image = preprocess_input(rgb_image, False)
+    rgb_image = np.expand_dims(rgb_image, 0)
+
+    result = _AGE_CLASSIFIER.predict(rgb_image)
+
+    return [{'age': str(result[0][0])}]
+
+
 def process_image():
-    detected_peoples = []
-    json_info = {}
+    """
+    DEPRECATED
+    """
     cap = cv2.VideoCapture(0)
     while True:
-        ret, frame = cap.read()
+        frame = cap.read()
         try:
             # parameters for loading data and images
             emotion_labels = get_labels('fer2013')
@@ -198,10 +216,12 @@ def process_image():
 
             faces = detect_faces(_FACE_DETECTION, gray_image)
             for face_coordinates in faces:
-                x1, x2, y1, y2 = apply_offsets(face_coordinates, gender_offsets)
+                x1, x2, y1, y2 = apply_offsets(face_coordinates,
+                                               gender_offsets)
                 rgb_face = rgb_image[y1:y2, x1:x2]
 
-                x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
+                x1, x2, y1, y2 = apply_offsets(face_coordinates,
+                                               emotion_offsets)
                 gray_face = gray_image[y1:y2, x1:x2]
 
                 x1, x2, y1, y2 = apply_offsets(face_coordinates, age_offsets)
@@ -270,13 +290,14 @@ def process_image():
 
                 draw_bounding_box(face_coordinates, rgb_image, color)
                 draw_text(face_coordinates, rgb_image,
-                        gender_text, color, 0, -40, 1, 1)
+                          gender_text, color, 0, -40, 1, 1)
                 draw_text(face_coordinates, rgb_image,
-                        emotion_text, color, 0, -60, 1, 1)
+                          emotion_text, color, 0, -60, 1, 1)
                 draw_text(face_coordinates, rgb_image,
-                        age_text, color, 0, -10, 1, 1)
+                          age_text, color, 0, -10, 1, 1)
         except Exception as err:
-            logging.error('Error in emotion gender processor: "{0}"'.format(err))
+            logging.error('Error in emotion gender processor: "{0}"'
+                          .format(err))
 
         # start_time = datetime.now()
         bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
@@ -293,11 +314,11 @@ def process_image():
 
         cv2.imshow("Demo", bgr_image)
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            break 
-    
+            break
+
     cap.release()
     cv2.destroyAllWindows()
 
 
-if __name__ == "__main__":
-    process_image()
+# if __name__ == "__main__":
+#     process_image()
