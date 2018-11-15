@@ -168,11 +168,16 @@ def age_classificator(image):
     """
     age_target_size = _AGE_CLASSIFIER.input_shape[1:3]
     rgb_image = preprocess_image(image)
-    rgb_image = cv2.resize(rgb_image, age_target_size)
-    rgb_image = preprocess_input(rgb_image, False)
-    rgb_image = np.expand_dims(rgb_image, 0)
+    gray_image = preprocess_image(image, True)
+    faces = detect_faces(_FACE_DETECTION, gray_image)
+    if len(faces):
+        rgb_image = cv2.resize(rgb_image, age_target_size)
+        rgb_image = preprocess_input(rgb_image, False)
+        rgb_image = np.expand_dims(rgb_image, 0)
 
-    result = _AGE_CLASSIFIER.predict(rgb_image)
+        result = _AGE_CLASSIFIER.predict(rgb_image)
+    else:
+        return None
 
     return [{'age': str(result[0][0])}]
 
