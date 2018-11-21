@@ -1,5 +1,5 @@
 # EG_classificator 1.0
-REST-like API service for emotion and gender classification
+REST-like API service for emotion, gender and age classification
 
 # Requirements:
 
@@ -27,7 +27,7 @@ docker build -t eg_classificator:latest .
 ```
 Затем чтобы запустить образ, нужно применить следующую команду:
 ```
-docker run --name eg_classificator -d -p 8000:5000 --rm eg_classificator:1.0
+docker run --name eg_classificator -d -p 8000:5000 --rm eg_classificator
 ```
 После запуска сервис будет доступен по адресу 0.0.0.0:8000
 
