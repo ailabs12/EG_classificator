@@ -1,5 +1,9 @@
-# EG_classificator 
+# EG_classificator 1.0
 REST-like API service for emotion and gender classification
+
+# Dependencies:
+
+* Docker CE 18.06.1
 
 # Run server locally
 Чтобы запустить сервер на Flask локально, нужно прописать в консоли следующую вещь 
@@ -19,23 +23,11 @@ pip install -r requirements.txt
 Для того, чтобы запустить сервис с помощью Docker нужно сначала собрать Docker image:
 ```
 cd eg_classificator
-docker build -t eg_classificator:1.0 .
+docker build -t eg_classificator:latest .
 ```
 Затем чтобы запустить образ, нужно применить следующую команду:
 ```
-docker run --name eg_classificator -d -p 8000:5000 --rm eg_calssificator:1.0
-```
-После запуска сервис будет доступен по адресу 0.0.0.0:8000
-
-# Run server with Docker
-Для того, чтобы запустить сервис с помощью Docker нужно сначала собрать Docker image:
-```
-cd eg_classificator
-docker build -t eg_classificator:1.0 .
-```
-Затем чтобы запустить образ, нужно применить следующую команду:
-```
-docker run --name eg_classificator -d -p 8000:5000 --rm eg_calssificator:1.0
+docker run --name eg_classificator -d -p 8000:5000 --rm eg_classificator:1.0
 ```
 После запуска сервис будет доступен по адресу 0.0.0.0:8000
 
